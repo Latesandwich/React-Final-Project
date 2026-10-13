@@ -1,8 +1,9 @@
-import { notFound } from 'next/navigation';
-import { INITIAL_SHOWTIMES, INITIAL_MOVIES } from '@/lib/mock-data';
-import SeatSelector from '@/components/SeatSelector';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { notFound, redirect } from "next/navigation";
+import { getMovieById, getShowtimeById } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
+import SeatSelector from "@/components/SeatSelector";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 interface BookingPageProps {
   params: Promise<{
@@ -12,18 +13,20 @@ interface BookingPageProps {
 
 export default async function BookingPage({ params }: BookingPageProps) {
   const { showtimeId } = await params;
-
-  // Find showtime or fallback to first showtime if demo
-  const showtime = INITIAL_SHOWTIMES.find((s) => s.id === showtimeId) || INITIAL_SHOWTIMES[0];
-  const movie = INITIAL_MOVIES.find((m) => m.id === showtime.movieId) || INITIAL_MOVIES[0];
+  if (!(await getCurrentUser()))
+    redirect(
+      "/login?callbackUrl=" + encodeURIComponent("/booking/" + showtimeId),
+    );
+  const showtime = await getShowtimeById(showtimeId);
+  const movie = showtime ? await getMovieById(showtime.movieId) : undefined;
 
   if (!showtime || !movie) {
     notFound();
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <main className="cg-shell py-8 sm:py-12">
+      <div className="space-y-6">
         {/* Breadcrumb / Back button */}
         <div>
           <Link
@@ -35,7 +38,26 @@ export default async function BookingPage({ params }: BookingPageProps) {
           </Link>
         </div>
 
-        {/* Seat Matrix and Summary */}
+        <div>
+          <p className="cg-label">YOUR SEAT, YOUR STORY</p>
+          <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">
+            {movie.title}
+          </h1>
+          <p className="mt-2 text-xs text-neutral-400">
+            {showtime.dateTime} · {showtime.hall.name} · {showtime.audio}
+          </p>
+        </div>
+        <ol aria-label="ขั้นตอนการจอง" className="flex flex-wrap gap-5 pb-2">
+          <li className="cg-step" aria-current="step">
+            <b>1</b>เลือกที่นั่ง
+          </li>
+          <li className="cg-step">
+            <b>2</b>ตรวจสอบข้อมูล
+          </li>
+          <li className="cg-step">
+            <b>3</b>ยืนยันการจอง
+          </li>
+        </ol>
         <SeatSelector showtime={showtime} movie={movie} />
       </div>
     </main>

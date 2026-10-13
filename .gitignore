@@ -37,3 +37,8 @@ next-env.d.ts
 
 # freebuff
 .freebuff
+
+# Private local SQLite data
+/data/*.sqlite*
+/data/*.db*
+!/.env.example

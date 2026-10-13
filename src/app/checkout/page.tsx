@@ -1,16 +1,19 @@
-import CheckoutForm from '@/components/CheckoutForm';
-import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import CheckoutForm from "@/components/CheckoutForm";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata = {
-  title: 'ชำระเงินและยืนยันการจอง — CinemaGo',
-  description: 'กรอกข้อมูลและเลือกช่องทางชำระเงินเพื่อยืนยันการจองตั๋วภาพยนตร์',
+  title: "ตรวจสอบและยืนยันการจอง — CinemaGo",
+  description: "ตรวจสอบข้อมูลติดต่อและที่นั่งก่อนยืนยันการจองในระบบสาธิต",
 };
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  if (!(await getCurrentUser())) redirect("/login?callbackUrl=/checkout");
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <main className="cg-shell py-8 sm:py-12">
+      <div className="space-y-6">
         <div>
           <Link
             href="/"
@@ -21,6 +24,17 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
+        <ol aria-label="ขั้นตอนการจอง" className="flex flex-wrap gap-5 pb-2">
+          <li className="cg-step">
+            <b>1</b>เลือกที่นั่ง
+          </li>
+          <li className="cg-step" aria-current="step">
+            <b>2</b>ตรวจสอบข้อมูล
+          </li>
+          <li className="cg-step">
+            <b>3</b>ยืนยันการจอง
+          </li>
+        </ol>
         <CheckoutForm />
       </div>
     </main>

@@ -1,55 +1,41 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Seat, Showtime, Movie } from '@/types';
-import { Armchair, Sparkles, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, Clock, MapPin, Film } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Armchair, ArrowRight, Info, X } from "lucide-react";
+import { useBooking } from "./BookingContext";
+import type { Seat, Showtime, Movie } from "@/types";
 
-interface SeatSelectorProps {
+// Client: clicks update selection immediately; the server rechecks inventory on confirmation.
+export default function SeatSelector({
+  showtime,
+  movie,
+}: {
   showtime: Showtime;
   movie: Movie;
-}
-
-export default function SeatSelector({ showtime, movie }: SeatSelectorProps) {
+}) {
   const router = useRouter();
-  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { setCheckout } = useBooking();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const selected = showtime.seats.filter((seat) =>
+    selectedIds.includes(seat.id),
+  );
+  const total = selected.reduce((sum, seat) => sum + seat.price, 0);
+  const rows = [...new Set(showtime.seats.map((seat) => seat.row))];
 
-  // Group seats by row
-  const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  const seatsByRow: Record<string, Seat[]> = {};
-  rows.forEach((r) => {
-    seatsByRow[r] = showtime.seats
-      .filter((s) => s.row === r)
-      .sort((a, b) => a.number - b.number);
-  });
-
-  const selectedSeats = showtime.seats.filter((s) => selectedSeatIds.includes(s.id));
-  const totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
-
-  const toggleSeat = (seat: Seat) => {
+  function toggle(seat: Seat) {
     if (seat.isBooked) return;
-    setErrorMsg(null);
-
-    if (selectedSeatIds.includes(seat.id)) {
-      setSelectedSeatIds((prev) => prev.filter((id) => id !== seat.id));
-    } else {
-      if (selectedSeatIds.length >= 8) {
-        setErrorMsg('สามารถเลือกที่นั่งได้สูงสุด 8 ที่นั่งต่อรายการจอง');
-        return;
-      }
-      setSelectedSeatIds((prev) => [...prev, seat.id]);
-    }
-  };
-
-  const handleProceedToCheckout = () => {
-    if (selectedSeats.length === 0) {
-      setErrorMsg('กรุณาเลือกที่นั่งอย่างน้อย 1 ที่นั่งเพื่อดำเนินการต่อ');
-      return;
-    }
-
-    // Persist selected booking in sessionStorage for checkout page
-    const checkoutData = {
+    setError("");
+    if (selectedIds.includes(seat.id))
+      setSelectedIds((ids) => ids.filter((id) => id !== seat.id));
+    else if (selectedIds.length === 8)
+      setError("เลือกได้สูงสุด 8 ที่นั่งต่อรายการ");
+    else setSelectedIds((ids) => [...ids, seat.id]);
+  }
+  function proceed() {
+    if (!selected.length) return;
+    setCheckout({
       showtimeId: showtime.id,
       movieId: movie.id,
       movieTitle: movie.title,
@@ -59,243 +45,160 @@ export default function SeatSelector({ showtime, movie }: SeatSelectorProps) {
       hallType: showtime.hall.type,
       dateTime: showtime.dateTime,
       audio: showtime.audio,
-      seats: selectedSeats.map((s) => ({
-        id: s.id,
-        row: s.row,
-        number: s.number,
-        type: s.type,
-        price: s.price,
+      seats: selected.map(({ id, row, number, type, price }) => ({
+        id,
+        row,
+        number,
+        type,
+        price,
       })),
-      totalPrice,
-    };
-
-    sessionStorage.setItem('cinemago_checkout', JSON.stringify(checkoutData));
-    router.push('/checkout');
-  };
-
+      totalPrice: total,
+    });
+    router.push("/checkout");
+  }
   return (
-    <div className="flex flex-col lg:flex-row gap-8 items-start">
-      {/* Seat Matrix Section */}
-      <div className="flex-1 w-full bg-neutral-900/60 backdrop-blur-md rounded-3xl border border-neutral-800/80 p-6 sm:p-10 shadow-2xl relative overflow-hidden">
-        {/* Glow ambient background */}
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Movie quick info header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-neutral-800">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="cg-panel min-w-0 p-4 sm:p-8" aria-label="ผังที่นั่ง">
+        <div className="flex flex-wrap justify-between gap-3 border-b border-neutral-800 pb-5">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 mb-2">
-              <Film className="w-3.5 h-3.5" /> กำลังฉาย
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{movie.title}</h1>
-            <p className="text-neutral-400 text-sm">{movie.titleTh}</p>
+            <p className="cg-label">SELECT YOUR SEATS</p>
+            <h2 className="mt-2 text-lg font-semibold">เลือกมุมโปรดของคุณ</h2>
           </div>
-          <div className="flex items-center gap-3 text-xs sm:text-sm text-neutral-300">
-            <div className="flex items-center gap-1.5 bg-neutral-950/80 px-3 py-1.5 rounded-xl border border-neutral-800">
-              <MapPin className="w-4 h-4 text-amber-400" />
-              <span>{showtime.hall.name} ({showtime.hall.type})</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-neutral-950/80 px-3 py-1.5 rounded-xl border border-neutral-800">
-              <Clock className="w-4 h-4 text-rose-400" />
-              <span>{showtime.dateTime}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Cinema Screen Projection Curve */}
-        <div className="my-10 text-center relative">
-          <div className="relative mx-auto max-w-xl h-14 overflow-hidden">
-            <div className="w-full h-24 border-t-4 border-amber-400/80 rounded-[100%] shadow-[0_-15px_35px_rgba(251,191,36,0.35)] bg-gradient-to-b from-amber-400/15 to-transparent" />
-          </div>
-          <div className="text-[11px] font-bold tracking-[0.3em] uppercase text-neutral-400 -mt-6">
-            จอภาพยนตร์ (CINEMA SCREEN)
-          </div>
-          <div className="w-48 h-1 bg-gradient-to-r from-transparent via-amber-400/50 to-transparent mx-auto mt-2 blur-sm" />
-        </div>
-
-        {/* Interactive Seats Matrix */}
-        <div className="overflow-x-auto pb-6">
-          <div className="min-w-[620px] flex flex-col items-center gap-3">
-            {rows.map((rowLetter) => {
-              const rowSeats = seatsByRow[rowLetter] || [];
-              const isVipRow = rowLetter === 'A' || rowLetter === 'B';
-              const isPremiumRow = rowLetter === 'C' || rowLetter === 'D' || rowLetter === 'E';
-
-              return (
-                <div key={rowLetter} className="flex items-center gap-3">
-                  {/* Row Letter label left */}
-                  <span className="w-6 text-center text-xs font-bold text-neutral-500 font-mono">
-                    {rowLetter}
-                  </span>
-
-                  {/* Seat items */}
-                  <div className="flex items-center gap-2">
-                    {rowSeats.map((seat, index) => {
-                      const isSelected = selectedSeatIds.includes(seat.id);
-                      const isBooked = seat.isBooked;
-
-                      // Space for aisle in middle (between seat 6 and 7)
-                      const hasAisle = index === 5;
-
-                      return (
-                        <div key={seat.id} className="flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleSeat(seat)}
-                            disabled={isBooked}
-                            title={`${seat.id} • ${seat.type.toUpperCase()} • ฿${seat.price}`}
-                            className={`group relative flex items-center justify-center transition-all duration-200 cursor-pointer rounded-t-lg font-mono text-[10px] font-bold select-none ${
-                              isVipRow ? 'w-8 h-8' : 'w-7 h-7'
-                            } ${
-                              isBooked
-                                ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed border border-neutral-800/40 opacity-40'
-                                : isSelected
-                                ? 'bg-emerald-500 text-neutral-950 scale-110 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-300 font-extrabold z-10'
-                                : isVipRow
-                                ? 'bg-amber-950/40 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-neutral-950 hover:scale-110 hover:shadow-lg hover:shadow-amber-500/40'
-                                : isPremiumRow
-                                ? 'bg-indigo-950/40 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500 hover:text-white hover:scale-110 hover:shadow-lg hover:shadow-indigo-500/40'
-                                : 'bg-neutral-800/80 text-neutral-300 border border-neutral-700/60 hover:bg-rose-500 hover:text-white hover:scale-110 hover:shadow-lg hover:shadow-rose-500/40'
-                            }`}
-                          >
-                            <Armchair className={`transition-transform duration-200 ${isSelected ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-                          </button>
-
-                          {hasAisle && <div className="w-6" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Row Letter label right */}
-                  <span className="w-6 text-center text-xs font-bold text-neutral-500 font-mono">
-                    {rowLetter}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-8 pt-6 border-t border-neutral-800/80 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-neutral-400">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-t-md bg-neutral-800/80 border border-neutral-700/60 flex items-center justify-center">
-              <Armchair className="w-3 h-3 text-neutral-400" />
-            </div>
-            <span>Standard (240฿)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-t-md bg-indigo-950/40 border border-indigo-500/40 flex items-center justify-center">
-              <Armchair className="w-3 h-3 text-indigo-300" />
-            </div>
-            <span>Premium (300฿)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-t-md bg-amber-950/40 border border-amber-500/40 flex items-center justify-center">
-              <Armchair className="w-3 h-3 text-amber-300" />
-            </div>
-            <span>VIP Sofa (450฿)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-t-md bg-emerald-500 text-neutral-950 flex items-center justify-center shadow-md shadow-emerald-500/30 font-bold">
-              <Armchair className="w-3 h-3" />
-            </div>
-            <span className="text-emerald-400 font-medium">เลือกแล้ว</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-t-md bg-neutral-800 text-neutral-600 opacity-40 flex items-center justify-center">
-              <Armchair className="w-3 h-3" />
-            </div>
-            <span>จองแล้ว</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Booking Summary Sidebar */}
-      <aside className="w-full lg:w-96 bg-neutral-900/80 backdrop-blur-xl rounded-3xl border border-neutral-800/90 p-6 shadow-2xl flex flex-col gap-6 sticky top-24">
-        <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" /> สรุปการเลือกที่นั่ง
-          </h2>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700">
-            {selectedSeats.length} ที่นั่ง
+          <span className="h-fit rounded-lg border border-neutral-700 px-3 py-2 text-xs text-amber-300">
+            {showtime.hall.type}
           </span>
         </div>
-
-        {/* Selected Seats List */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            ที่นั่งที่คุณเลือก:
-          </p>
-
-          {selectedSeats.length === 0 ? (
-            <div className="py-8 text-center text-neutral-500 text-xs rounded-2xl bg-neutral-950/40 border border-dashed border-neutral-800">
-              <Armchair className="w-8 h-8 mx-auto mb-2 opacity-30 text-neutral-400" />
-              กรุณาคลิกเลือกที่นั่งบนผังด้านซ้าย
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
-              {selectedSeats.map((seat) => (
-                <div
-                  key={seat.id}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs group hover:border-emerald-500/50 transition-colors"
-                >
-                  <span className="font-mono font-black text-emerald-400">{seat.id}</span>
-                  <span className="text-neutral-400 text-[11px] capitalize">({seat.type})</span>
-                  <span className="text-neutral-200 font-semibold">฿{seat.price}</span>
+        <div className="mb-9 mt-10 text-center">
+          <div className="mx-auto h-8 max-w-md rounded-[50%] border-t-2 border-amber-300/80 bg-gradient-to-b from-amber-400/10 to-transparent" />
+          <p className="cg-label !text-[9px]">จอภาพยนตร์ / SCREEN</p>
+        </div>
+        <p className="mb-4 text-center text-[11px] text-neutral-500">
+          แถว A อยู่ใกล้จอ • เลื่อนผังแนวนอนได้บนมือถือ
+        </p>
+        <div
+          className="overflow-x-auto pb-4"
+          tabIndex={0}
+          aria-label="เลื่อนเพื่อดูที่นั่งทั้งหมด"
+        >
+          <div className="mx-auto w-max space-y-2.5 px-1">
+            {rows.map((row) => (
+              <div key={row} className="flex items-center gap-2">
+                <span className="w-5 text-xs font-mono text-neutral-500">
+                  {row}
+                </span>
+                <div className="flex gap-1.5">
+                  {showtime.seats
+                    .filter((seat) => seat.row === row)
+                    .sort((a, b) => a.number - b.number)
+                    .map((seat) => {
+                      const active = selectedIds.includes(seat.id);
+                      return (
+                        <button
+                          key={seat.id}
+                          type="button"
+                          disabled={seat.isBooked}
+                          aria-pressed={active}
+                          aria-label={`ที่นั่ง ${seat.id} ${seat.type} ราคา ${seat.price} บาท${seat.isBooked ? " จองแล้ว" : ""}`}
+                          title={`${seat.id} · ${seat.type} · ฿${seat.price}`}
+                          onClick={() => toggle(seat)}
+                          className={`flex h-10 w-9 flex-col items-center justify-center rounded-t-xl rounded-b-md border text-[9px] transition-colors ${seat.number === 7 ? "ml-4" : ""} ${seat.isBooked ? "cursor-not-allowed border-neutral-800 bg-neutral-900 text-neutral-700" : active ? "border-amber-300 bg-amber-400 text-neutral-950" : seat.type === "vip" ? "border-amber-700/70 bg-amber-950/20 text-amber-300 hover:bg-amber-400/20" : seat.type === "premium" ? "border-sky-800 bg-sky-950/20 text-sky-300 hover:bg-sky-900/40" : "border-neutral-600 bg-neutral-800 text-neutral-200 hover:border-amber-400"}`}
+                        >
+                          <Armchair size={15} />
+                          <span>{seat.number}</span>
+                        </button>
+                      );
+                    })}
                 </div>
+                <span className="w-4 text-right text-xs font-mono text-neutral-500">
+                  {row}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 border-t border-neutral-800 pt-5 text-[10px] text-neutral-400">
+          {[
+            ["bg-neutral-700", "Standard ฿240"],
+            ["bg-sky-700", "Premium ฿300"],
+            ["bg-amber-800", "VIP ฿450"],
+            ["bg-amber-400", "เลือกแล้ว"],
+            ["bg-neutral-900 border border-neutral-700", "จองแล้ว"],
+          ].map(([color, label]) => (
+            <span key={label} className="flex items-center gap-2">
+              <i className={`size-3 rounded-sm ${color}`} />
+              {label}
+            </span>
+          ))}
+        </div>
+      </section>
+      <aside className="cg-panel p-6 lg:sticky lg:top-40">
+        <p className="cg-label">YOUR MOVIE NIGHT</p>
+        <h2 className="mt-3 text-xl font-semibold">{movie.title}</h2>
+        <p className="mt-1 text-xs text-neutral-400">{movie.titleTh}</p>
+        <dl className="my-5 space-y-3 text-xs">
+          {[
+            ["รอบฉาย", showtime.dateTime],
+            ["โรงภาพยนตร์", showtime.hall.name],
+            ["ภาษา", showtime.audio],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3">
+              <dt className="text-neutral-500">{label}</dt>
+              <dd className="text-right">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="cg-rule" />
+        <div className="my-5">
+          <p className="mb-3 text-xs text-neutral-400">
+            ที่นั่งที่เลือก ({selected.length}/8)
+          </p>
+          {selected.length ? (
+            <div className="flex flex-wrap gap-2">
+              {selected.map((seat) => (
+                <button
+                  key={seat.id}
+                  type="button"
+                  onClick={() => toggle(seat)}
+                  aria-label={`ยกเลิกที่นั่ง ${seat.id}`}
+                  className="flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-300"
+                >
+                  {seat.id}
+                  <X size={12} />
+                </button>
               ))}
             </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-neutral-700 p-4 text-xs leading-6 text-neutral-500">
+              แตะที่นั่งบนผังเพื่อเริ่มเลือก
+              <br />
+              เลือกได้สูงสุด 8 ที่นั่ง
+            </p>
           )}
         </div>
-
-        {/* Price Breakdown */}
-        <div className="bg-neutral-950/70 rounded-2xl p-4 border border-neutral-800/80 space-y-2 text-sm">
-          <div className="flex justify-between text-neutral-400 text-xs">
-            <span>ภาพยนตร์</span>
-            <span className="text-neutral-200 font-medium truncate max-w-[180px]">{movie.title}</span>
-          </div>
-          <div className="flex justify-between text-neutral-400 text-xs">
-            <span>โรงภาพยนตร์</span>
-            <span className="text-neutral-200 font-medium">{showtime.hall.name}</span>
-          </div>
-          <div className="flex justify-between text-neutral-400 text-xs">
-            <span>ระบบเสียง/ภาษา</span>
-            <span className="text-neutral-200 font-medium">{showtime.audio}</span>
-          </div>
-          <div className="pt-3 mt-3 border-t border-neutral-800 flex justify-between items-baseline">
-            <span className="text-sm font-semibold text-neutral-300">ยอดรวมทั้งสิ้น:</span>
-            <span className="text-2xl font-black bg-gradient-to-r from-amber-400 to-rose-400 bg-clip-text text-transparent">
-              ฿{totalPrice.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
+        {error && (
+          <p role="alert" className="mb-4 text-xs text-red-400">
+            {error}
+          </p>
         )}
-
-        {/* Action Button */}
-        <button
-          onClick={handleProceedToCheckout}
-          disabled={selectedSeats.length === 0}
-          className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 shadow-xl cursor-pointer ${
-            selectedSeats.length > 0
-              ? 'bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white shadow-rose-500/25 hover:scale-[1.02] active:scale-[0.98]'
-              : 'bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700/50'
-          }`}
-        >
-          <span>ดำเนินการต่อ (ไปหน้าชำระเงิน)</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-
-        <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-500">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>ระบบจองตั๋วแบบเรียลไทม์ ปลอดภัย 100%</span>
+        <div aria-live="polite" className="mb-5 flex items-end justify-between">
+          <span className="text-xs text-neutral-400">ยอดรวม</span>
+          <strong className="text-3xl font-semibold text-amber-400">
+            ฿{total.toLocaleString()}
+          </strong>
         </div>
+        <button
+          type="button"
+          onClick={proceed}
+          disabled={!selected.length}
+          className="cg-button w-full"
+        >
+          ดำเนินการต่อ <ArrowRight size={16} />
+        </button>
+        <p className="mt-4 flex gap-2 text-[10px] leading-5 text-neutral-500">
+          <Info size={14} className="mt-0.5 shrink-0" />
+          ที่นั่งจะถูกตรวจสอบและบันทึกเมื่อยืนยันการจอง
+          ยังไม่ถูกล็อกในขั้นตอนนี้
+        </p>
       </aside>
     </div>
   );

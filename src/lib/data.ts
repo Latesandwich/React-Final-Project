@@ -1,25 +1,39 @@
-// ชั้นเข้าถึงข้อมูล — ฟังก์ชันชื่อเดียวกับ Part A (getMovies/getMovieById/...)
-// แต่ชี้ไปที่ dataset เดียวของแอป (mock-data ของ Part B) เพื่อให้
-// /movies/[id] เชื่อมกับผังที่นั่ง /booking/[showtimeId] ได้จริง
-import { Movie, Showtime } from '@/types';
-import { INITIAL_MOVIES, INITIAL_SHOWTIMES } from './mock-data';
+import { cache } from "react";
+import { connection } from "next/server";
+import { readCatalogue } from "./backend";
+import { INITIAL_MOVIES, INITIAL_SHOWTIMES } from "./mock-data";
 
-// ดึงรายชื่อหนังทั้งหมด
-export async function getMovies(): Promise<Movie[]> {
-  return INITIAL_MOVIES;
+// Only public catalogue reads fall back. Accounts and reservations fail closed.
+export async function readPublicCatalogue(catalogueCache = false) {
+  try {
+    return { ...await readCatalogue(catalogueCache), mode: "database" as const };
+  } catch {
+    return {
+      movies: INITIAL_MOVIES,
+      showtimes: INITIAL_SHOWTIMES,
+      mode: "demo" as const,
+    };
+  }
 }
 
-// ดึงหนังเรื่องเดียวจาก id
-export async function getMovieById(id: string): Promise<Movie | undefined> {
-  return INITIAL_MOVIES.find((movie) => movie.id === id);
+export const getCatalogue = cache(async () => {
+  // CHECK 02 — SSR on details/booking: inventory must be fresh per request.
+  await connection();
+  return readPublicCatalogue();
+});
+export async function getMovies() {
+  return (await getCatalogue()).movies;
 }
-
-// ดึงรอบฉายทั้งหมดของหนังเรื่องหนึ่ง
-export async function getShowtimesByMovieId(movieId: string): Promise<Showtime[]> {
-  return INITIAL_SHOWTIMES.filter((showtime) => showtime.movieId === movieId);
+export async function getMovieById(id: string) {
+  return (await getMovies()).find((movie) => movie.id === id);
 }
-
-// ดึงรอบฉายเดียวจาก id (ใช้ตอนเข้าหน้าเลือกที่นั่ง)
-export async function getShowtimeById(id: string): Promise<Showtime | undefined> {
-  return INITIAL_SHOWTIMES.find((showtime) => showtime.id === id);
+export async function getShowtimesByMovieId(id: string) {
+  return (await getCatalogue()).showtimes.filter(
+    (showtime) => showtime.movieId === id,
+  );
+}
+export async function getShowtimeById(id: string) {
+  return (await getCatalogue()).showtimes.find(
+    (showtime) => showtime.id === id,
+  );
 }
