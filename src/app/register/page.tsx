@@ -38,7 +38,8 @@ export default function RegisterPage() {
   } = useForm<z.infer<typeof registrationSchema>>({
     resolver: zodResolver(registrationSchema),
   });
-  // Validate in the browser for feedback; the existing Server Action also validates every write.
+  // Submit manually so validation/server errors do not reset uncontrolled inputs.
+  // The Server Action still validates every write independently.
   const submit = handleSubmit((values) => {
     const formData = new FormData();
     Object.entries(values).forEach(([key, value]) => formData.set(key, value));
@@ -64,7 +65,6 @@ export default function RegisterPage() {
         </div>
 
         <form
-          action={formAction}
           onSubmit={submit}
           noValidate
           className="space-y-4"
@@ -166,7 +166,7 @@ export default function RegisterPage() {
           </div>
 
           {state?.error && (
-            <p className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+            <p role="alert" className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
               {state.error}
             </p>
           )}

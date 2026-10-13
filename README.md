@@ -51,6 +51,15 @@ Back up the database after stopping the app, or use SQLite's backup API. WAL mod
 
 ## Verification
 
+### Form validation and loading
+
+- Registration and login submit through `onSubmit` and dispatch their Server Actions inside `startTransition`. Validation errors show warnings on the same page; the form is not reloaded or automatically reset. Entered names, emails and passwords remain in their inputs after an error. Passwords are not saved in browser storage.
+- Checkout already uses React Hook Form's `handleSubmit`; contact fields, payment choice, selected seats and promo input remain available after client/server validation errors. Navigation happens after a successful action only.
+- `src/components/LazyBooking.tsx` uses `next/dynamic` inside a Client Component to split the seat selector and checkout form into separate JavaScript chunks, with loading placeholders and SSR preserved.
+- `src/app/loading.tsx` supplies an App Router loading skeleton while a page's server data loads. Non-priority movie images already use Next Image's default lazy loading; the featured hero remains eager.
+
+Manual checks: submit an invalid registration, submit an existing email, and attempt login with a wrong password. Each warning must keep all input values and stay on the same page. In checkout, try an invalid phone or promo code and confirm that contact details, payment choice and selected seats remain. Navigate to booking/checkout and check their loading placeholders on a slow connection.
+
 ```powershell
 npm test
 npm run lint

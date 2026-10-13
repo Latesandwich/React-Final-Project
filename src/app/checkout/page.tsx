@@ -1,4 +1,4 @@
-import CheckoutForm from "@/components/CheckoutForm";
+import { LazyCheckoutForm as CheckoutForm } from "@/components/LazyBooking";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";

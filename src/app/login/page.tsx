@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, Suspense } from "react";
+import { startTransition, useActionState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Film, LogIn, Lock, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +17,14 @@ function LoginForm() {
   );
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="space-y-4"
+    >
       <input type="hidden" name="callbackUrl" value={callbackUrl} />
 
       <div>
@@ -61,7 +68,7 @@ function LoginForm() {
       </div>
 
       {state?.error && (
-        <p className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+        <p role="alert" className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
           {state.error}
         </p>
       )}

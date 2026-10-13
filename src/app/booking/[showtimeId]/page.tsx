@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getMovieById, getShowtimeById } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
-import SeatSelector from "@/components/SeatSelector";
+import { LazySeatSelector as SeatSelector } from "@/components/LazyBooking";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
