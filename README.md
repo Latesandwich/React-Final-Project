@@ -6,12 +6,12 @@ The small server adapter is `src/lib/backend.ts`; the reviewable schema and atom
 
 Start with [คู่มืออ่านโค้ดและพรีเซนต์ (Thai)](CODE_GUIDE_TH.md) for the requirement map, numbered key blocks, Server/Client explanations, and manual verification steps.
 
-This version is shared on branch `feat/local-sqlite-backend`, based on `d1449e0` with the reviewed ISR changes adapted from your friend's commits. `main` contains separate work and has not been overwritten.
+This version is shared in [Latesandwich/React-Final-Project](https://github.com/Latesandwich/React-Final-Project/tree/feat/local-sqlite-backend), on branch `feat/local-sqlite-backend`, based on `d1449e0` with the reviewed ISR changes adapted from your friend's commits. The original repository's `main` contains separate work and has not been overwritten.
 
 Clone the collaboration version:
 
 ```powershell
-git clone --branch feat/local-sqlite-backend https://github.com/Saiklang21/React-Final-Project.git
+git clone --branch feat/local-sqlite-backend https://github.com/Latesandwich/React-Final-Project.git
 cd React-Final-Project
 ```
 
